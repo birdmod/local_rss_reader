@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *MUST* come first in <head>; any other head content must come *after* these tags -->
+    <title>rss nuevo</title>
+			
+    <!-- libraries via CDN -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+    <script src="https://www.google.com/jsapi"></script>
+    <script src="https://www.google.com/uds/?file=feeds&v=1"></script>
+    
+    
+    <!-- Read botton to top (js logic) -->
+    <script>
+      var urlCachedFeeds = [];
+
+      function ExtractImgUrl(feedData) {
+        // Look in mediaGroups (siliconera)
+        if (feedData.mediaGroups!= undefined && feedData.mediaGroups[0] != undefined && 
+           feedData.mediaGroups[0].contents != undefined && feedData.mediaGroups[0].contents[0].url != undefined) {
+          return feedData.mediaGroups[0].contents[0].url;
+        }
+        else {
+          // Check in "content" (destructoid & kotaku)
+          var tmpNode = document.createElement('div');
+          tmpNode.innerHTML = feedData.content;
+          var firstImage = tmpNode.getElementsByTagName("img")[0];
+          var imgSrc = firstImage ? firstImage.src : "";
+          delete tmpNode;
+          return imgSrc;
+        }
+        return "";
+      }
+      
+      function CreateEntryFeedTag(feedEntryData, isOffsetAdded) {
+        var offset = isOffsetAdded ? " col-md-offset-1" : "";
+        var feedEntryMainContainer = CreateTagWithClasses("div", "entry-container col-lg-2" + offset);
+        
+        var feedEntryLink = CreateTagWithClasses("a", "entry-link");
+        feedEntryLink.setAttribute("href", feedEntryData.link);
+        feedEntryMainContainer.appendChild(feedEntryLink);
+        
+        var feedEntryImg = CreateTagWithClasses("img", "entry-media img-thumbnail");        
+        var imgSrc = ExtractImgUrl(feedEntryData);
+        feedEntryImg.setAttribute("src", imgSrc);
+        feedEntryLink.appendChild(feedEntryImg);
+        
+        var feedEntryTitle = CreateTagWithClasses("p", "entry-title");
+        $(feedEntryTitle).html(feedEntryData.title);
+        feedEntryLink.appendChild(feedEntryTitle);
+        
+        return feedEntryMainContainer;
+      }
+      
+      function FetchFeedFromUrl(url, errorNode, articlesNode) {
+        var feed = new google.feeds.Feed(url);
+        feed.setNumEntries(15);
+        feed.load(function(result) {
+          if (!result.error) {
+            var isNewLine = 0;
+            var currentArticlesRow = undefined;
+            for (var index = 0; index < result.feed.entries.length; index++) {
+              isNewLine = (index % 5) == 0;
+              if (isNewLine) {
+                currentArticlesRow = CreateTagWithClasses("div", "row");
+                articlesNode.appendChild(currentArticlesRow);
+              }
+              currentArticlesRow.appendChild(CreateEntryFeedTag(result.feed.entries[index], isNewLine)); 
+              console.log(result.feed.entries[index]);
+            }
+          }
+        });
+      }
+      
+      function SetAllButtonsNormalState() {
+        $(".action-feed").button("reset");
+      }
+      
+      function SetAllButtonsLoadingState() {
+        $(".action-feed").button("loading");
+      }
+      
+      function DisplayFlashValid(msg, callingNode) {
+        // Retrieve in DOM the local error tag
+        var ancestorAlertNode = $(callingNode).closest(".input-group-container").siblings(".alert-success");
+        $(ancestorAlertNode).text(msg).toggle();
+        // Displays the message during 2 seconds then re activates all add/remove buttons of page
+        window.setTimeout(function() { ancestorAlertNode.toggle(); SetAllButtonsNormalState(); }, 2000);
+        console.info(msg);
+      }
+      
+      // The function which displays the error message bound to an input group
+      // It looks for the closest ancestor with the alert-danger class
+      function DisplayFlashError(errMsg, callingNode) {
+        // Retrieve in DOM the local error tag
+        var ancestorAlertNode = $(callingNode).closest(".input-group-container").siblings(".alert-danger");
+        $(ancestorAlertNode).text(errMsg).toggle();
+        // Displays the message during 2 seconds then re activates all add/remove buttons of page
+        window.setTimeout(function() { ancestorAlertNode.toggle(); SetAllButtonsNormalState(); }, 2000);
+        console.error(errMsg);
+      }
+      
+      // Retrieve the url from list
+      function RemoveUrlFromLocalStorage(callingNode, errorCallback, successCallback) {
+        var typedFeedUrlNode = $(callingNode).closest("span").siblings(".form-control");
+        var typedFeedUrl = $(typedFeedUrlNode).val();
+
+        var indexOfUrlFeed = $.inArray(typedFeedUrl, urlCachedFeeds);
+        if (typedFeedUrl != "" && indexOfUrlFeed != -1) {
+          urlCachedFeeds.splice(indexOfUrlFeed, 1);
+          localStorage.setItem("RSSreader_feeds", JSON.stringify(urlCachedFeeds));
+          successCallback("Feed will be deleted", callingNode);
+          $(callingNode).closest(".feed-master-container").remove();
+          if ($("main").children().length == 0) {
+            // If we deleted the last item group we recreate one (should never happen/defensive programming #useless)
+            AddFeedGroupWithUrl("");
+          }
+        }
+        else {
+          if (typedFeedUrl == "") {
+            errorCallback("No url is provided", callingNode);
+          }
+          else {
+            errorCallback("Cannot find url: " + typedFeedUrl, callingNode);
+          }
+        }
+      }
+      
+      // When button "add" of a feed group gets clicked we find the typed url 
+      function AddUrlToLocalStorage(callingNode, errorCallback, successCallback) {
+        var typedFeedUrlNode = $(callingNode).closest("span").siblings(".form-control");
+        var typedFeedUrl = $(typedFeedUrlNode).val();
+        if (typedFeedUrl != undefined && typedFeedUrl != "") {
+          // Check for duplicate and add it
+          if ($.inArray(typedFeedUrl, urlCachedFeeds) != -1) {
+            errorCallback("Url already saved", callingNode);
+          }
+          else {
+            urlCachedFeeds.push(typedFeedUrl);
+            if (typeof(Storage) !== "undefined") {
+              localStorage.setItem("RSSreader_feeds", JSON.stringify(urlCachedFeeds));
+              successCallback("Data saved !", callingNode);
+              AddFeedGroupWithUrl("");
+            }
+            else {
+              errorCallback("Storage API not available", callingNode);
+            }
+          }
+        }
+        else {
+          if (typedFeedUrl == "") {
+            errorCallback("Url feed is empty", callingNode);
+          }
+          else {
+            // No url was written or not available, show an alert
+            errorCallback("Cannot retrieve typed url", callingNode);
+          }
+        }
+      }
+      
+      // Creates a DOM which contains the button and icon of a bootstrap inputGroup
+      // It also binds the callback to the onclick event of the button
+      function CreateInputGroupBtnNode(glyphName, addOrRemoveCallback, errorDisplayCb, successDisplayCb) {
+        var inputGroupBtnContainerNode = CreateTagWithClasses("span", "input-group-btn");
+        var inputGroupButton = CreateTagWithClasses("button", "btn btn-default action-feed");
+        inputGroupButton.setAttribute("type", "button");
+        inputGroupButton.setAttribute("data-loading-text", "Loading...");
+        // The "clicked" handler of a button has reference to the calling node AND the error function (callback) to display a flash message
+        inputGroupButton.onclick = function() { 
+          // Disable all buttons. They will be enabled again in errorDisplayCb or successDisplayCb because those callbacks are also async
+          SetAllButtonsLoadingState();
+          // Execute the callback with the calling node and error callback
+          addOrRemoveCallback(this, errorDisplayCb, successDisplayCb);          
+        };
+        inputGroupBtnContainerNode.appendChild(inputGroupButton);
+
+        var inputGroupBtnIcon = CreateTagWithClasses("span", "glyphicon " + glyphName);
+        inputGroupBtnIcon.setAttribute("aria-hidden", "true");
+        inputGroupButton.appendChild(inputGroupBtnIcon);
+        
+        return inputGroupBtnContainerNode;
+      }
+      
+      function CreateSuccessNodeForCurrentInputGroup() {
+          var successNode = CreateTagWithClasses("div", "alert alert-success col-lg-3");
+          successNode.setAttribute("role", "alert");
+          $(successNode).hide();
+          return successNode;
+      }
+      
+      // This is the error alert that is created for the current built input group.
+      // We create, add it to DOM then hide it. It will be diplayed later
+      function CreateErrorNodeForCurrentInputGroup() {
+        var errorNode = CreateTagWithClasses("div", "alert alert-danger col-lg-3");
+        errorNode.setAttribute("role", "alert");
+        $(errorNode).hide();
+        return errorNode;
+      }
+      
+      // Creates a DOM tag with a tag name and the classes provided
+      function CreateTagWithClasses(tag, classes) {
+        var newNode = document.createElement(tag);
+        newNode.className = classes;
+        return newNode;
+      }
+      
+      // Creates the whole DOM data which represents the header of a feed
+      // Tightly coupled to Bootstrap Input Group component
+      function AddFeedGroupWithUrl(url) {
+        var masterFeedNode = CreateTagWithClasses("div", "feed-master-container");
+
+        var separator = CreateTagWithClasses("hr", "");
+        masterFeedNode.appendChild(separator);
+        
+        var gridNode = CreateTagWithClasses("div", "row");
+        masterFeedNode.appendChild(gridNode);
+        
+        var articlesContainerNode = CreateTagWithClasses("div", "entries-container")
+        masterFeedNode.appendChild(articlesContainerNode);
+        
+        var gridItemNode = CreateTagWithClasses("div", "col-lg-3 input-group-container col-md-offset-1");
+        gridNode.appendChild(gridItemNode);
+        
+        // The node which displays error for the add/remove
+        var errorMsgNode = CreateErrorNodeForCurrentInputGroup();
+        gridNode.appendChild(errorMsgNode);
+        
+        var validMsgNode = CreateSuccessNodeForCurrentInputGroup();
+        gridNode.appendChild(validMsgNode);
+        
+        var inputGroupNode = CreateTagWithClasses("div", "input-group");
+        gridItemNode.appendChild(inputGroupNode);
+        
+        var inputGroupBtnRemoveContainerNode = CreateInputGroupBtnNode("glyphicon-remove", RemoveUrlFromLocalStorage, DisplayFlashError, DisplayFlashValid);
+        inputGroupNode.appendChild(inputGroupBtnRemoveContainerNode);
+
+        var inputUrlNode = CreateTagWithClasses("input", "form-control");
+        inputUrlNode.setAttribute("type", "text");
+        var placeholderOrValue = url == "" ? ["placeholder", "Url to feed"] : ["value", url];
+        inputUrlNode.setAttribute(placeholderOrValue[0], placeholderOrValue[1]);
+        inputGroupNode.appendChild(inputUrlNode);
+        
+        var inputGroupBtnAddContainerNode = CreateInputGroupBtnNode("glyphicon-ok", AddUrlToLocalStorage, DisplayFlashError, DisplayFlashValid);
+        inputGroupNode.appendChild(inputGroupBtnAddContainerNode);
+        
+        $("main").prepend(masterFeedNode);
+        if (url != "") {
+          FetchFeedFromUrl(url, errorMsgNode, articlesContainerNode);
+        }
+      }
+      
+      // Main function ran when jquery is loaded
+      // Depending on what is found in local storage we display saved feeds urls or only one
+      function StartWhenPageReady() {
+        // We retrieve in local storage the urls. 
+        // If nothing we just display one entry
+        if (typeof(Storage) !== "undefined") {
+          var savedStorage = JSON.parse(localStorage.getItem("RSSreader_feeds"));
+          urlCachedFeeds = savedStorage == null ? [] : savedStorage;
+          for (var i = 0; i < urlCachedFeeds.length; i++) {
+            AddFeedGroupWithUrl(urlCachedFeeds[i]);
+          }
+          AddFeedGroupWithUrl("");
+        }
+        else {
+          var msg = "Storage API is not available with your web browser. Unable to use this page :( ";
+          var errorNode = CreateTagWithClasses("div", "alert alert-danger");
+          errorNode.setAttribute("role", "alert");
+          errorNode.innerHTML = msg;
+          $("main").prepend(errorNode);
+          console.error(msg);
+        }
+      }
+      
+      $(document).ready(function() {
+        google.load("feeds", "1");
+        google.setOnLoadCallback(StartWhenPageReady);
+      });
+    </script>
+    
+		<style type="text/css">
+      /* Set a background for the whole page */
+      body {
+        background: url('blueprint-dark_from_mozilla.png') repeat;
+      }
+      
+      /* Usage of botstrap rows increases the global width */
+      .feed-master-container {
+        margin: 20px;
+      }
+      
+      .entry-container {
+        position: relative;
+      }
+      
+      .entry-media {
+        width: 300px;
+        height: 200px;
+      }
+
+      .entry-title {
+        position: absolute;
+        width: 300px;
+        max-height: 100px;
+        padding: 10px;
+        top: 0px;
+        font-size: 16px;
+        color: black;
+        opacity: 0.8;
+        overflow: hidden;
+        background-color: white;
+        display: block;
+      }
+      
+      .entry-title:hover {
+        opacity: 0.0;
+/*        display: none;*/
+      }
+      
+      .entries-container .row {
+        margin-top: 24px;
+      }
+      
+      /* Sets a footer that is sticky with a gray background and takes all width */
+      footer {
+        bottom: 0;
+        width: 100%;
+        background-color: #F5F5F5;
+      }
+      
+      /* Center the footer text vertically and horizontally */
+      footer p {
+        margin: 10px 0px;
+        text-align: center;
+      }
+    </style>
+    
+  </head>
+  
+  <body>
+    <!-- Groups of saved feeds will be appended inside -->
+    <main></main>
+    
+    <!-- The footer which is a sneaky sticky bar -->
+    <footer class="footer">
+        <p>Developped by LG with Bootstrap 3, icons from <a href="http://glyphicons.com/">Glyphicons</a> and <a href="https://rss2json.com">rss2json</a></p>
+    </footer>
+    
+  </body>
+</html>

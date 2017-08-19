@@ -11,30 +11,14 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
-    <!--<script src="https://www.google.com/jsapi"></script>
-<script src="https://www.google.com/uds/?file=feeds&v=1"></script> -->
     <script type="text/javascript" src="https://rss2json.com/gfapi.js"></script>
     
     <!-- Read bottom to top (js logic) -->
     <script>
       var urlCachedFeeds = [];
 
-      function ExtractImgUrl(feedData) {
-        // Look in mediaGroups (siliconera)
-        if (feedData.mediaGroups!= undefined && feedData.mediaGroups[0] != undefined && 
-           feedData.mediaGroups[0].contents != undefined && feedData.mediaGroups[0].contents[0].url != undefined) {
-          return feedData.mediaGroups[0].contents[0].url;
-        }
-        else {
-          // Check in "content" (destructoid & kotaku)
-          var tmpNode = document.createElement('div');
-          tmpNode.innerHTML = feedData.content;
-          var firstImage = tmpNode.getElementsByTagName("img")[0];
-          var imgSrc = firstImage ? firstImage.src : "";
-          delete tmpNode;
-          return imgSrc;
-        }
-        return "";
+      function getRandomArbitrary(min, max) {
+        return Math.floor(Math.random() * (max - min) + min);
       }
       
       function CreateEntryFeedTag(feedEntryData, isOffsetAdded) {
@@ -44,14 +28,21 @@
         var feedEntryLink = CreateTagWithClasses("a", "entry-link");
         feedEntryLink.setAttribute("href", feedEntryData.link);
         feedEntryMainContainer.appendChild(feedEntryLink);
-        
-        var feedEntryImg = CreateTagWithClasses("img", "entry-media img-thumbnail");        
-        var imgSrc = ExtractImgUrl(feedEntryData);
-        feedEntryImg.setAttribute("src", imgSrc);
-        feedEntryLink.appendChild(feedEntryImg);
-        
+
+        // RSS feeds do not play the game of providing an image so I remove them
+      
         var feedEntryTitle = CreateTagWithClasses("p", "entry-title");
-        $(feedEntryTitle).html(feedEntryData.title);
+        var edited_title = ""
+        // Take 15 first words ...
+        var first_elements = feedEntryData.title.split(' ').slice(0, 16)
+        var index_word_decorated = getRandomArbitrary(0, first_elements.length)
+        // ... and decorate a random word
+        first_elements[index_word_decorated] = '<span class="decorated">' + first_elements[index_word_decorated] + '</span>'
+      
+        if (first_elements.length == 15)
+          first_elements[14] = '...'
+      
+        $(feedEntryTitle).html(first_elements.join(' '));
         feedEntryLink.appendChild(feedEntryTitle);
         
         return feedEntryMainContainer;
@@ -71,7 +62,6 @@
                 articlesNode.appendChild(currentArticlesRow);
               }
               currentArticlesRow.appendChild(CreateEntryFeedTag(result.feed.entries[index], isNewLine)); 
-              console.log(result.feed.entries[index]);
             }
           }
         });
@@ -118,7 +108,7 @@
           $(callingNode).closest(".feed-master-container").remove();
           if ($("main").children().length == 0) {
             // If we deleted the last item group we recreate one (should never happen/defensive programming #useless)
-            AddFeedGroupWithUrl("");
+	    AddFeedGroupWithUrl("");
           }
         }
         else {
@@ -145,7 +135,15 @@
             if (typeof(Storage) !== "undefined") {
               localStorage.setItem("RSSreader_feeds", JSON.stringify(urlCachedFeeds));
               successCallback("Data saved !", callingNode);
-              AddFeedGroupWithUrl("");
+	      AddFeedGroupWithUrl("");
+
+	      // We created a new group and we need to retrieve rss data on it by providing corresponding entries container
+	      // From the callingNode (here the 'add' button), we need to traverse back and forth to get the entries container.
+	      // Watch out we get an array !!!  
+	      var sibling_entries_container = $(callingNode).closest($('div.feed-master-container')).find($('div.entries-container'))
+
+	      if (sibling_entries_container.length == 1)
+		FetchFeedFromUrl(typedFeedUrl, null, sibling_entries_container[0]);
             }
             else {
               errorCallback("Storage API not available", callingNode);
@@ -194,7 +192,7 @@
       }
       
       // This is the error alert that is created for the current built input group.
-      // We create, add it to DOM then hide it. It will be diplayed later
+      // We create, add it to DOM then hide it. Will be displayed when needed
       function CreateErrorNodeForCurrentInputGroup() {
         var errorNode = CreateTagWithClasses("div", "alert alert-danger col-lg-3");
         errorNode.setAttribute("role", "alert");
@@ -209,8 +207,7 @@
         return newNode;
       }
       
-      // Creates the whole DOM data which represents the header of a feed
-      // Tightly coupled to Bootstrap Input Group component
+      // Adds user controls (input, add, delete) in DOM for each feed. Coupled to Bootstrap Input Group component
       function AddFeedGroupWithUrl(url) {
         var masterFeedNode = CreateTagWithClasses("div", "feed-master-container");
 
@@ -254,13 +251,12 @@
         }
       }
       
-      // Main function runs when jquery is loaded
-      // Depending on what is found in local storage we display saved feeds urls or only one
+      // Main function started when jQuery is loaded
       function StartWhenPageReady() {
-        // Get URLs from local storage
-        // If nothing we just display one entry
+        // Checks if flocal storage API is available
         if (typeof(Storage) !== "undefined") {
-          var savedStorage = JSON.parse(localStorage.getItem("RSSreader_feeds"));
+	  // Retrieve the local DB contents
+	  var savedStorage = JSON.parse(localStorage.getItem("RSSreader_feeds"));
           urlCachedFeeds = savedStorage == null ? [] : savedStorage;
           for (var i = 0; i < urlCachedFeeds.length; i++) {
             AddFeedGroupWithUrl(urlCachedFeeds[i]);
@@ -286,7 +282,7 @@
     <style type="text/css">
       /* Set a background for the whole page */
       body {
-      background: #D3D3D3;
+      background: #798386;
       }
       
       /* Usage of bootstrap rows increases the global width */
@@ -294,32 +290,24 @@
       margin: 20px;
       }
       
-      .entry-container {
-      position: relative;
+      .decorated {
+      background: #867477;
+      color: yellow;
       }
-      
-      .entry-media {
-      width: 300px;
-      height: 200px;
+
+      .entry-link a {
+      text-decoration: none;
       }
       
       .entry-title {
-      position: absolute;
-      width: 300px;
-      max-height: 100px;
-      padding: 10px;
+      padding: 2px;
       top: 0px;
-      font-size: 16px;
-      color: black;
-      opacity: 0.8;
+      font-size: 20px;
+      color: #DAD9BC;
       overflow: hidden;
-      background-color: white;
+      background-color: #8A9AA0;
       display: block;
-      }
       
-      .entry-title:hover {
-      opacity: 0.0;
-      /*        display: none;*/
       }
       
       .entries-container .row {
@@ -348,7 +336,7 @@
     
     <!-- The footer which is a sneaky sticky bar -->
     <footer class="footer">
-      <p>Developped by <a href="https://github.com/birdmod">LG (birdmod)</a> with Bootstrap 3, icons from <a href="http://glyphicons.com/">Glyphicons</a> and <a href="https://rss2json.com">rss2json</a></p>
+      <p>Developped by <a href="https://github.com/birdmod">LG (birdmod)</a> with Bootstrap 3, icons from <a href="http://glyphicons.com/">Glyphicons</a> and <a href="https://rss2json.com">rss2json</a>. The colors were taken thanks to a <a href="https://color.adobe.com/fr/create/color-wheel/">great tool, adobe color palette</a></p>
     </footer>
     
   </body>

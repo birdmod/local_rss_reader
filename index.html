@@ -11,11 +11,11 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
-    <script src="https://www.google.com/jsapi"></script>
-    <script src="https://www.google.com/uds/?file=feeds&v=1"></script>
+    <!--<script src="https://www.google.com/jsapi"></script>
+<script src="https://www.google.com/uds/?file=feeds&v=1"></script> -->
+    <script type="text/javascript" src="https://rss2json.com/gfapi.js"></script>
     
-    
-    <!-- Read botton to top (js logic) -->
+    <!-- Read bottom to top (js logic) -->
     <script>
       var urlCachedFeeds = [];
 
@@ -254,10 +254,10 @@
         }
       }
       
-      // Main function ran when jquery is loaded
+      // Main function runs when jquery is loaded
       // Depending on what is found in local storage we display saved feeds urls or only one
       function StartWhenPageReady() {
-        // We retrieve in local storage the urls. 
+        // Get URLs from local storage
         // If nothing we just display one entry
         if (typeof(Storage) !== "undefined") {
           var savedStorage = JSON.parse(localStorage.getItem("RSSreader_feeds"));
@@ -283,60 +283,60 @@
       });
     </script>
     
-		<style type="text/css">
+    <style type="text/css">
       /* Set a background for the whole page */
       body {
-        background: url('blueprint-dark_from_mozilla.png') repeat;
+      background: #D3D3D3;
       }
       
-      /* Usage of botstrap rows increases the global width */
+      /* Usage of bootstrap rows increases the global width */
       .feed-master-container {
-        margin: 20px;
+      margin: 20px;
       }
       
       .entry-container {
-        position: relative;
+      position: relative;
       }
       
       .entry-media {
-        width: 300px;
-        height: 200px;
+      width: 300px;
+      height: 200px;
       }
-
+      
       .entry-title {
-        position: absolute;
-        width: 300px;
-        max-height: 100px;
-        padding: 10px;
-        top: 0px;
-        font-size: 16px;
-        color: black;
-        opacity: 0.8;
-        overflow: hidden;
-        background-color: white;
-        display: block;
+      position: absolute;
+      width: 300px;
+      max-height: 100px;
+      padding: 10px;
+      top: 0px;
+      font-size: 16px;
+      color: black;
+      opacity: 0.8;
+      overflow: hidden;
+      background-color: white;
+      display: block;
       }
       
       .entry-title:hover {
-        opacity: 0.0;
-/*        display: none;*/
+      opacity: 0.0;
+      /*        display: none;*/
       }
       
       .entries-container .row {
-        margin-top: 24px;
+      margin-top: 24px;
       }
       
       /* Sets a footer that is sticky with a gray background and takes all width */
       footer {
-        bottom: 0;
-        width: 100%;
-        background-color: #F5F5F5;
+      bottom: 0;
+      width: 100%;
+      background-color: #F5F5F5;
       }
       
       /* Center the footer text vertically and horizontally */
       footer p {
-        margin: 10px 0px;
-        text-align: center;
+      margin: 10px 0px;
+      text-align: center;
       }
     </style>
     
@@ -348,7 +348,7 @@
     
     <!-- The footer which is a sneaky sticky bar -->
     <footer class="footer">
-        <p>Developped by LG with Bootstrap 3, icons from <a href="http://glyphicons.com/">Glyphicons</a> and <a href="https://rss2json.com">rss2json</a></p>
+      <p>Developped by <a href="https://github.com/birdmod">LG (birdmod)</a> with Bootstrap 3, icons from <a href="http://glyphicons.com/">Glyphicons</a> and <a href="https://rss2json.com">rss2json</a></p>
     </footer>
     
   </body>

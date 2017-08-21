@@ -18,5 +18,18 @@ But, the CORS technology allows it ... only if the server on which you query you
 As I do not know which servers are going to be called by users and as I want a working project, I relied on Google Feed API ... which shut down in 2015 so I used the replacement found [here on rss2json](https://rss2json.com/)
 
 # What does it look like ?
-So this is a screenshot of the finished project that runs in the browser with already URLs stored and displaying articles
+This is a screenshot of the finished project that runs in the browser with already URLs stored and displaying articles
+
 ![Screenshot](screenshot_rss_reader.png?raw=true)
+
+# Usage
+The most important point because this is not some code stored with a cryptic README file where you are the only one to 
+understand the *raison d'être* of your project. This project can be used ! 
+
+As stated in the motivation paragraph, this can be of use for the people you know such as :
+* Amanda who does not know how which RSS service to subscribe 
+* Jamarcus who uses a web browser with an integrated display of RSS feeds that does not suit him
+
+#### Set the index page as a favorite and the user just needs to click it to access the feeds:
+
+![Screenshot](usage.png?raw=true)
